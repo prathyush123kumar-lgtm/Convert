@@ -99,7 +99,7 @@ def generate_fixtures():
     # 2. Text-based PDF (convert from complex_document.docx using LibreOffice)
     from config import find_libreoffice_binary
     from services.cleanup import EphemeralWorkspace
-    from services.word_to_pdf import convert_word_to_pdf
+    from services.office_to_pdf import convert_word_to_pdf
 
     text_pdf_path = FIXTURES_DIR / "text_document.pdf"
     with EphemeralWorkspace(prefix="gen_fixture_") as ws:
@@ -151,7 +151,62 @@ def generate_fixtures():
         f.write(b"%PDF-1.4\n%TRUNCATED_AND_BROKEN_PDF_FILE")
     print(f"Created: {malformed_pdf}")
 
+    # 7. Sample Spreadsheet (.xlsx)
+    xlsx_path = FIXTURES_DIR / "spreadsheet.xlsx"
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Financial Summary"
+    ws.append(["Department", "Q1 Budget", "Q2 Budget", "Q3 Budget", "Q4 Budget"])
+    ws.append(["Engineering", 150000, 160000, 155000, 170000])
+    ws.append(["Security & Compliance", 95000, 98000, 102000, 110000])
+    ws.append(["Design & UX", 45000, 48000, 52000, 55000])
+    wb.save(str(xlsx_path))
+    print(f"Created: {xlsx_path}")
+
+    # 8. Sample Presentation (.pptx)
+    pptx_path = FIXTURES_DIR / "presentation.pptx"
+    import pptx
+    prs = pptx.Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[0])
+    slide.shapes.title.text = "PrivDoc Zero Retention Architecture"
+    slide.placeholders[1].text = "Security, Privacy, and High Throughput"
+    prs.save(str(pptx_path))
+    print(f"Created: {pptx_path}")
+
+    # 9. Multi-page PDF for Merge & Split tests
+    multipage_pdf_path = FIXTURES_DIR / "multi_page_sample.pdf"
+    writer = pypdf.PdfWriter()
+    for page_num in range(1, 5):
+        p_img = Image.new("RGB", (600, 800), color=(255, 255, 255))
+        d = ImageDraw.Draw(p_img)
+        d.text((100, 150), f"PrivDoc Document Page {page_num}", fill=(20, 20, 20))
+        d.text((100, 200), f"This is page {page_num} of 4 in the benchmark test document.", fill=(60, 60, 60))
+        d.rectangle([50, 50, 550, 750], outline=(100, 100, 100), width=2)
+        p_buf = io.BytesIO()
+        p_img.save(p_buf, "PDF")
+        p_buf.seek(0)
+        p_reader = pypdf.PdfReader(p_buf)
+        writer.add_page(p_reader.pages[0])
+    with open(multipage_pdf_path, "wb") as f:
+        writer.write(f)
+    print(f"Created: {multipage_pdf_path}")
+
+    # 10. Document with Tracking Metadata for Scrubber test
+    meta_docx_path = FIXTURES_DIR / "doc_with_metadata.docx"
+    doc_meta = docx.Document()
+    core_props = doc_meta.core_properties
+    core_props.author = "John Doe Secret Author"
+    core_props.comments = "Confidential internal metadata notes"
+    core_props.title = "Internal Security Audit"
+    core_props.subject = "Confidential Investigation"
+    doc_meta.add_heading("Internal Security Audit", 0)
+    doc_meta.add_paragraph("This document has identifying metadata tags.")
+    doc_meta.save(str(meta_docx_path))
+    print(f"Created: {meta_docx_path}")
+
     print("All fixtures generated successfully.")
 
 if __name__ == "__main__":
     generate_fixtures()
+

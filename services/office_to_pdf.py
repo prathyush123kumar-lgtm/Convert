@@ -13,27 +13,34 @@ class ConversionTimeoutError(ConversionError):
     """Raised when conversion exceeds allowed time limit."""
     pass
 
-def convert_word_to_pdf(input_docx: Path, output_pdf: Path, workspace: EphemeralWorkspace) -> None:
+def convert_office_to_pdf(input_file: Path, output_pdf: Path, workspace: EphemeralWorkspace) -> None:
     """
-    Converts a Word document (.docx or .doc) to PDF using LibreOffice in headless mode.
-    Preserves text, tables, images, headings, and layout fidelity.
+    Converts an Office document (Word, Excel, or PowerPoint) to PDF using
+    headless LibreOffice. Preserves fonts, tables, layouts, and embedded charts.
     """
     lo_binary = find_libreoffice_binary()
     if not lo_binary:
         raise ConversionError(
             "LibreOffice is not installed or detected on the server. "
-            "Please install LibreOffice to enable Word to PDF conversion."
+            "Please install LibreOffice to enable Office to PDF conversion."
         )
 
-    # Dedicated isolated profile for this conversion run to avoid lockfile collisions
+    # Dedicated isolated profile directory for this conversion to avoid lockfile collisions
     profile_dir = workspace.path / "lo_profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Format URI for LibreOffice on Windows and POSIX
     profile_uri = profile_dir.as_uri()
 
-    # Outdir where LibreOffice writes converted file
     outdir = workspace.path
+
+    ext = input_file.suffix.lstrip(".").lower()
+    # Choose specific filter or generic pdf
+    export_filter = "pdf"
+    if ext in ["docx", "doc"]:
+        export_filter = "pdf:writer_pdf_Export"
+    elif ext in ["xlsx", "xls"]:
+        export_filter = "pdf:calc_pdf_Export"
+    elif ext in ["pptx", "ppt"]:
+        export_filter = "pdf:impress_pdf_Export"
 
     cmd = [
         lo_binary,
@@ -41,13 +48,12 @@ def convert_word_to_pdf(input_docx: Path, output_pdf: Path, workspace: Ephemeral
         "--norestore",
         "--nolockcheck",
         f"-env:UserInstallation={profile_uri}",
-        "--convert-to", "pdf:writer_pdf_Export",
+        "--convert-to", export_filter,
         "--outdir", str(outdir),
-        str(input_docx)
+        str(input_file)
     ]
 
     try:
-        # Prevent popup windows on Windows
         startupinfo = None
         if os.name == 'nt':
             startupinfo = subprocess.STARTUPINFO()
@@ -63,23 +69,26 @@ def convert_word_to_pdf(input_docx: Path, output_pdf: Path, workspace: Ephemeral
         )
     except subprocess.TimeoutExpired:
         raise ConversionTimeoutError(
-            f"Word to PDF conversion timed out after {CONVERSION_TIMEOUT_SECONDS} seconds. "
-            "The document may contain heavy assets or unresolvable layout macros."
+            f"Office to PDF conversion timed out after {CONVERSION_TIMEOUT_SECONDS} seconds. "
+            "The document may contain excessive sheets, slides, or unresolvable assets."
         )
-    except Exception as e:
+    except Exception:
         raise ConversionError("An error occurred while launching the conversion engine.")
 
-    # LibreOffice outputs a file with the same stem as input_docx and .pdf extension in outdir
-    expected_out = outdir / f"{input_docx.stem}.pdf"
+    # LibreOffice writes an output with the same stem as input_file and .pdf extension in outdir
+    expected_out = outdir / f"{input_file.stem}.pdf"
     if not expected_out.exists() or expected_out.stat().st_size == 0:
-        # Check stderr for known issues without exposing stack traces
         stderr_msg = result.stderr.strip() if result.stderr else ""
         if "corrupt" in stderr_msg.lower() or "damaged" in stderr_msg.lower():
-            raise ConversionError("The Word document is damaged or corrupted.")
+            raise ConversionError("The document is damaged or corrupted.")
         raise ConversionError("The conversion engine failed to produce a valid PDF output.")
 
-    # Move to target output_pdf if different (use shutil.move for cross-drive safety)
+    # Move to target output_pdf if different
     if expected_out.resolve() != output_pdf.resolve():
         if output_pdf.exists():
             output_pdf.unlink()
         shutil.move(str(expected_out), str(output_pdf))
+
+# Alias for backward compatibility
+def convert_word_to_pdf(input_docx: Path, output_pdf: Path, workspace: EphemeralWorkspace) -> None:
+    convert_office_to_pdf(input_docx, output_pdf, workspace)

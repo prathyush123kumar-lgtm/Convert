@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.cleanup import EphemeralWorkspace
 from services.validator import validate_upload, sanitize_filename, ValidationError
-from services.word_to_pdf import convert_word_to_pdf, ConversionError
+from services.office_to_pdf import convert_word_to_pdf, ConversionError
 from services.pdf_to_word import convert_pdf_to_word, ScannedDocumentError, inspect_pdf_text_suitability
 from services.compress_pdf import compress_pdf_lossless
 from services.compress_word import compress_word_document
@@ -81,7 +81,7 @@ class TestDocumentServices(unittest.TestCase):
 
         with EphemeralWorkspace(prefix="test_p2w_") as ws:
             output_docx = ws.secure_path(suffix=".docx")
-            meta = convert_pdf_to_word(text_pdf, output_docx, ws)
+            meta = convert_pdf_to_word(text_pdf, output_docx)
 
             self.assertTrue(output_docx.exists())
             self.assertGreater(output_docx.stat().st_size, 1000)
@@ -100,7 +100,7 @@ class TestDocumentServices(unittest.TestCase):
         with EphemeralWorkspace(prefix="test_scan_") as ws:
             output_docx = ws.secure_path(suffix=".docx")
             with self.assertRaises(ScannedDocumentError) as ctx:
-                convert_pdf_to_word(scanned_pdf, output_docx, ws)
+                convert_pdf_to_word(scanned_pdf, output_docx)
             self.assertIn("scanned or image-only", str(ctx.exception).lower())
             self.assertIn("ocr", str(ctx.exception).lower())
 
@@ -155,5 +155,104 @@ class TestDocumentServices(unittest.TestCase):
             self.assertGreater(stats_opt["percent_saved"], 0.0)
             self.assertGreater(stats_opt["images_optimized"], 0)
 
+    def test_excel_to_pdf_conversion(self):
+        """Test converting an Excel spreadsheet to PDF."""
+        xlsx_path = FIXTURES_DIR / "spreadsheet.xlsx"
+        self.assertTrue(xlsx_path.exists())
+
+        from services.office_to_pdf import convert_office_to_pdf
+        with EphemeralWorkspace(prefix="test_xl2p_") as ws:
+            out_pdf = ws.secure_path(suffix=".pdf")
+            convert_office_to_pdf(xlsx_path, out_pdf, ws)
+            self.assertTrue(out_pdf.exists())
+            self.assertGreater(out_pdf.stat().st_size, 1000)
+            reader = pypdf.PdfReader(str(out_pdf))
+            self.assertGreaterEqual(len(reader.pages), 1)
+
+    def test_powerpoint_to_pdf_conversion(self):
+        """Test converting a PowerPoint presentation to PDF."""
+        pptx_path = FIXTURES_DIR / "presentation.pptx"
+        self.assertTrue(pptx_path.exists())
+
+        from services.office_to_pdf import convert_office_to_pdf
+        with EphemeralWorkspace(prefix="test_ppt2p_") as ws:
+            out_pdf = ws.secure_path(suffix=".pdf")
+            convert_office_to_pdf(pptx_path, out_pdf, ws)
+            self.assertTrue(out_pdf.exists())
+            self.assertGreater(out_pdf.stat().st_size, 1000)
+            reader = pypdf.PdfReader(str(out_pdf))
+            self.assertGreaterEqual(len(reader.pages), 1)
+
+    def test_pdf_merge_and_split(self):
+        """Test PDF merge and page extraction."""
+        from services.pdf_tools import merge_pdf_documents, split_pdf_document, PDFMergeError, PDFSplitError
+
+        pdf1 = FIXTURES_DIR / "text_document.pdf"
+        pdf2 = FIXTURES_DIR / "multi_page_sample.pdf"
+        self.assertTrue(pdf1.exists())
+        self.assertTrue(pdf2.exists())
+
+        # Test Merge
+        with EphemeralWorkspace(prefix="test_merge_") as ws:
+            merged_pdf = ws.secure_path(suffix=".pdf")
+            stats = merge_pdf_documents([pdf1, pdf2], merged_pdf)
+            self.assertTrue(merged_pdf.exists())
+            self.assertEqual(stats["files_merged"], 2)
+            reader = pypdf.PdfReader(str(merged_pdf))
+            self.assertGreaterEqual(len(reader.pages), 5)
+
+        # Test Split (Extract pages 2 and 4 from 4-page sample)
+        with EphemeralWorkspace(prefix="test_split_") as ws:
+            split_pdf = ws.secure_path(suffix=".pdf")
+            stats = split_pdf_document(pdf2, split_pdf, "2, 4")
+            self.assertTrue(split_pdf.exists())
+            self.assertEqual(stats["extracted_pages"], 2)
+            self.assertEqual(stats["selected_pages_1based"], [2, 4])
+            reader = pypdf.PdfReader(str(split_pdf))
+            self.assertEqual(len(reader.pages), 2)
+
+        # Test Split range validation errors
+        with EphemeralWorkspace(prefix="test_split_err_") as ws:
+            dummy_out = ws.secure_path(suffix=".pdf")
+            with self.assertRaises(PDFSplitError):
+                split_pdf_document(pdf2, dummy_out, "99")  # out of bounds
+            with self.assertRaises(PDFSplitError):
+                split_pdf_document(pdf2, dummy_out, "5-2")  # invalid range
+
+    def test_metadata_scrubber(self):
+        """Test stripping metadata and tracking properties from PDF and DOCX."""
+        from services.metadata_scrubber import sanitize_document_metadata
+        import pymupdf
+
+        # 1. Test PDF metadata wipe
+        text_pdf = FIXTURES_DIR / "text_document.pdf"
+        with EphemeralWorkspace(prefix="test_scrub_pdf_") as ws:
+            clean_pdf = ws.secure_path(suffix=".pdf")
+            stats = sanitize_document_metadata(text_pdf, clean_pdf, "pdf")
+            self.assertTrue(clean_pdf.exists())
+            self.assertGreaterEqual(stats["fields_scrubbed"], 1)
+
+            # Check that metadata is wiped in resulting PDF
+            doc = pymupdf.open(str(clean_pdf))
+            meta = doc.metadata or {}
+            self.assertEqual(meta.get("author", ""), "")
+            self.assertEqual(meta.get("creator", ""), "")
+            self.assertEqual(meta.get("producer", ""), "")
+            doc.close()
+
+        # 2. Test DOCX metadata wipe
+        meta_docx = FIXTURES_DIR / "doc_with_metadata.docx"
+        with EphemeralWorkspace(prefix="test_scrub_docx_") as ws:
+            clean_docx = ws.secure_path(suffix=".docx")
+            stats = sanitize_document_metadata(meta_docx, clean_docx, "docx")
+            self.assertTrue(clean_docx.exists())
+            self.assertGreaterEqual(stats["fields_scrubbed"], 1)
+
+            # Check that author and identifying fields were scrubbed
+            doc = docx.Document(str(clean_docx))
+            self.assertEqual(doc.core_properties.author or "", "")
+            self.assertEqual(doc.core_properties.title or "", "")
+
 if __name__ == "__main__":
     unittest.main()
+

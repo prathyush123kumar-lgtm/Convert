@@ -3,11 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Fast, private, zero-retention document converter and compressor. Word to PDF, PDF to Word, and lossless compression without registration or document storage.">
-  <title>PrivDoc — Privacy-First Document Converter & Compressor</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta name="description" content="Fast, private, zero-retention document converter and compressor. Word, Excel, PowerPoint to PDF, PDF to Word, Merge, Split, and Metadata Scrubber without registration or document storage.">
+  <title>PrivDoc — Privacy-First Document Suite</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -49,7 +46,7 @@
           </div>
           <h1 class="hero-title">Document utility that respects your privacy.</h1>
           <p class="hero-subtitle">
-            Upload a file, convert or compress it losslessly, download the result, and leave. Files are processed in an isolated ephemeral sandbox and permanently erased from the server immediately after download.
+            Upload, convert, merge, split, or sanitize your documents in isolated ephemeral memory. Download the result and leave — every temporary file is permanently erased.
           </p>
         </section>
 
@@ -58,13 +55,15 @@
           
           <!-- Primary Actions Tab Navigation -->
           <nav class="action-tabs" role="tablist" aria-label="Document Operations">
-            <button class="tab-btn active" role="tab" aria-selected="true" id="tab-word-to-pdf" data-action="word-to-pdf" data-accept=".docx,.doc" data-type="Word Document">
+            <!-- 1. Office to PDF -->
+            <button class="tab-btn active" role="tab" aria-selected="true" id="tab-office-to-pdf" data-action="office-to-pdf" data-accept=".docx,.doc,.xlsx,.xls,.pptx,.ppt" data-type="Office Document">
               <span class="tab-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               </span>
-              <span class="tab-label">Word to PDF</span>
+              <span class="tab-label">Office to PDF</span>
             </button>
 
+            <!-- 2. PDF to Word -->
             <button class="tab-btn" role="tab" aria-selected="false" id="tab-pdf-to-word" data-action="pdf-to-word" data-accept=".pdf" data-type="PDF Document">
               <span class="tab-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 12h4"/><path d="M10 16h4"/></svg>
@@ -72,6 +71,23 @@
               <span class="tab-label">PDF to Word</span>
             </button>
 
+            <!-- 3. Merge PDFs -->
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-merge-pdf" data-action="merge-pdf" data-accept=".pdf" data-type="PDF Documents" data-multi="true">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="13" height="13" rx="2"/><path d="M8 8h8a2 2 0 0 1 2 2v8"/><polyline points="13 18 18 18 18 13"/></svg>
+              </span>
+              <span class="tab-label">Merge PDFs</span>
+            </button>
+
+            <!-- 4. Split PDF -->
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-split-pdf" data-action="split-pdf" data-accept=".pdf" data-type="PDF Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+              </span>
+              <span class="tab-label">Split PDF</span>
+            </button>
+
+            <!-- 5. Compress PDF -->
             <button class="tab-btn" role="tab" aria-selected="false" id="tab-compress-pdf" data-action="compress-pdf" data-accept=".pdf" data-type="PDF Document">
               <span class="tab-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
@@ -79,23 +95,32 @@
               <span class="tab-label">Compress PDF</span>
             </button>
 
+            <!-- 6. Compress Word -->
             <button class="tab-btn" role="tab" aria-selected="false" id="tab-compress-word" data-action="compress-word" data-accept=".docx" data-type="Word Document">
               <span class="tab-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               </span>
               <span class="tab-label">Compress Word</span>
             </button>
+
+            <!-- 7. Scrub Metadata -->
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-sanitize-meta" data-action="sanitize-meta" data-accept=".pdf,.docx,.xlsx,.pptx" data-type="Any Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+              </span>
+              <span class="tab-label">Scrub Metadata</span>
+            </button>
           </nav>
 
           <!-- Operation Scope Hint -->
           <div class="action-hint-banner" id="actionHintBanner">
             <span class="hint-dot"></span>
-            <span id="actionHintText">Convert Microsoft Word (.docx) to high-fidelity PDF with preserved formatting, tables, and typography.</span>
+            <span id="actionHintText">Convert Word (.docx), Excel (.xlsx), or PowerPoint (.pptx) documents directly to PDF with preserved formatting.</span>
           </div>
 
           <!-- Drag and Drop Upload Area -->
           <div class="dropzone" id="dropzone" tabindex="0" role="region" aria-label="File Upload Dropzone">
-            <input type="file" id="fileInput" class="file-input-hidden" accept=".docx,.doc">
+            <input type="file" id="fileInput" class="file-input-hidden" accept=".docx,.doc,.xlsx,.xls,.pptx,.ppt">
             
             <div class="dropzone-content">
               <div class="upload-icon-circle">
@@ -105,10 +130,10 @@
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
               </div>
-              <h2 class="dropzone-prompt">Drag & drop your document here</h2>
+              <h2 class="dropzone-prompt" id="dropzonePrompt">Drag & drop your document here</h2>
               <p class="dropzone-sub">or <button type="button" class="browse-link" id="browseBtn">browse files</button> from your device</p>
               <div class="dropzone-constraints">
-                <span id="formatConstraintBadge" class="format-pill">Accepts .DOCX, .DOC</span>
+                <span id="formatConstraintBadge" class="format-pill">Word, Excel, or PowerPoint</span>
                 <span class="limit-pill">Up to 50 MB</span>
                 <span class="ephemeral-pill">Instant Wipe</span>
               </div>
@@ -117,7 +142,8 @@
 
           <!-- Selected File Card (Hidden Initially) -->
           <div class="file-card hidden" id="fileCard">
-            <div class="file-card-info">
+            <!-- Single File Details -->
+            <div class="file-card-info" id="singleFileInfo">
               <div class="file-icon-box">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               </div>
@@ -127,7 +153,38 @@
               </div>
             </div>
 
-            <!-- Optional Option for Compress PDF -->
+            <!-- Multi-File Details for Merge -->
+            <div class="multi-files-box hidden" id="multiFilesBox">
+              <div class="multi-files-header">
+                <span class="multi-files-title">Files to Merge:</span>
+                <span class="file-counter-pill" id="multiFilesCount">2 files</span>
+              </div>
+              <div class="file-chips-container" id="fileChipsContainer"></div>
+            </div>
+
+            <!-- Option for Split PDF: Page Range Input -->
+            <div class="custom-option-panel hidden" id="splitPdfOptions">
+              <label class="input-label" for="pageRangeInput">
+                <strong>Pages to Extract</strong>
+                <span class="subtext">Enter page numbers or ranges separated by commas (e.g. <code>1-3, 5</code> or <code>all</code>):</span>
+              </label>
+              <div class="input-with-button">
+                <input type="text" id="pageRangeInput" class="text-input" placeholder="e.g. 1-3, 5" value="1">
+              </div>
+            </div>
+
+            <!-- Option for Metadata Scrubbing -->
+            <div class="custom-option-panel hidden" id="sanitizeOptions">
+              <div class="privacy-guarantee-badges">
+                <span class="privacy-tag">🛡️ Author Name Scrubbed</span>
+                <span class="privacy-tag">🕒 Timestamps Reset</span>
+                <span class="privacy-tag">📷 Camera EXIF Purged</span>
+                <span class="privacy-tag">📝 Revision History Cleared</span>
+              </div>
+              <p class="subtext" style="margin-top: 0.5rem;">Document contents and visual layouts remain 100% intact.</p>
+            </div>
+
+            <!-- Option for Compress PDF -->
             <div class="custom-option-panel hidden" id="pdfCompressOptions">
               <label class="checkbox-label" for="strongPdfToggle">
                 <input type="checkbox" id="strongPdfToggle">
@@ -139,7 +196,7 @@
               </label>
             </div>
 
-            <!-- Optional Option for Compress Word -->
+            <!-- Option for Compress Word -->
             <div class="custom-option-panel hidden" id="wordCompressOptions">
               <label class="checkbox-label" for="optimizeImagesToggle">
                 <input type="checkbox" id="optimizeImagesToggle">
@@ -181,7 +238,8 @@
               </div>
             </div>
 
-            <!-- Compression Stats Display (Only for Compression) -->
+            <!-- Dynamic Stats Display -->
+            <!-- 1. Compression Stats -->
             <div class="compression-stats hidden" id="compressionStats">
               <div class="stat-item">
                 <span class="stat-label">Original Size</span>
@@ -194,6 +252,43 @@
               </div>
               <div class="stat-badge" id="statSavingsBadge">
                 <span id="statSavingsPercent">0%</span> Saved
+              </div>
+            </div>
+
+            <!-- 2. Merge Stats -->
+            <div class="metric-stats-row hidden" id="mergeStatsRow">
+              <div class="stat-item">
+                <span class="stat-label">Documents Merged</span>
+                <span class="stat-val" id="statFilesMerged">2 Files</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Total Result Pages</span>
+                <span class="stat-val" id="statTotalPages">—</span>
+              </div>
+            </div>
+
+            <!-- 3. Split Stats -->
+            <div class="metric-stats-row hidden" id="splitStatsRow">
+              <div class="stat-item">
+                <span class="stat-label">Original Pages</span>
+                <span class="stat-val" id="statOriginalPages">—</span>
+              </div>
+              <div class="stat-divider">→</div>
+              <div class="stat-item">
+                <span class="stat-label">Extracted Pages</span>
+                <span class="stat-val" id="statExtractedPages">—</span>
+              </div>
+            </div>
+
+            <!-- 4. Sanitizer Stats -->
+            <div class="metric-stats-row hidden" id="sanitizeStatsRow">
+              <div class="stat-item">
+                <span class="stat-label">Tracking Tags Wiped</span>
+                <span class="stat-val" id="statFieldsScrubbed">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Image EXIF Scrubbed</span>
+                <span class="stat-val" id="statImagesSanitized">0</span>
               </div>
             </div>
 
@@ -210,7 +305,7 @@
             <!-- Realistic Quality Notice -->
             <div class="fidelity-notice">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <span>Formatting fidelity is preserved within conversion engine specifications. Very complex proprietary macros or non-standard fonts may differ slightly.</span>
+              <span>Formatting fidelity is preserved within conversion engine specifications. Very complex macros or non-standard fonts may differ slightly.</span>
             </div>
           </div>
 
@@ -220,7 +315,7 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
             </div>
             <div class="error-content">
-              <h4 class="error-title" id="errorTitle">Conversion Failed</h4>
+              <h4 class="error-title" id="errorTitle">Operation Failed</h4>
               <p class="error-message" id="errorMessage">An unexpected error occurred.</p>
               
               <!-- Special OCR recommendation for scanned documents -->
@@ -241,7 +336,7 @@
               <div class="privacy-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
-              <h3>Our Concrete Privacy Guarantees</h3>
+              <h3>Concrete Privacy Guarantees</h3>
             </div>
             <div class="guarantees-grid">
               <div class="guarantee-item">

@@ -28,9 +28,9 @@ Most document conversion websites store user files on disks, retain documents in
 
 ## 2. Key Features
 
-### 📄 1. Word to PDF (`.docx`, `.doc` → `.pdf`)
-- Powered by **LibreOffice** in headless mode (`--headless --convert-to pdf:writer_pdf_Export`).
-- Preserves layout, complex tables, headings, embedded vector and raster graphics, and typography.
+### 📄 1. Office to PDF (`.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt` → `.pdf`)
+- Powered by **LibreOffice** in headless mode (`--headless --convert-to pdf`).
+- Converts Word documents, Excel spreadsheets, and PowerPoint presentations with preserved layout, complex tables, embedded charts, vector graphics, and typography.
 - Uses dedicated per-request user profile sandboxes (`-env:UserInstallation`) to prevent lock collisions during concurrent conversion requests.
 
 ### 📝 2. PDF to Word (`.pdf` → `.docx`)
@@ -38,15 +38,28 @@ Most document conversion websites store user files on disks, retain documents in
 - **Scanned Document Detection**: Inspects PDF streams before conversion. If a PDF consists of scanned pictures or has no selectable text layer, the system returns a clear `422 Unprocessable Entity` with an actionable **OCR advisory** instead of silently generating an empty or mangled Word document.
 - **Encryption Check**: Detects password-protected PDFs and requests password removal upfront.
 
-### 🗜️ 3. Lossless PDF Compression (`.pdf`)
+### 📚 3. PDF Merge & Split / Page Extraction (`.pdf`)
+- Powered by `pypdf`.
+- **Merge**: Combine 2 or more PDF documents into a single ordered document in isolated ephemeral memory.
+- **Split / Extract Pages**: Extract custom page ranges (e.g. `1-3, 5` or `all`) into a clean, standalone PDF.
+
+### 🛡️ 4. Document Metadata & Author Scrubber (Privacy Sanitizer)
+- Scrubs identifying tracking tags from **PDF, DOCX, XLSX, and PPTX** documents:
+  - Wipes author names, organization/company tags, and manager fields.
+  - Clears creation, modification, and revision timestamps.
+  - Purges XML tracking packets (`/Metadata`) and custom user properties.
+  - Strips GPS location and camera EXIF metadata from embedded JPEG/PNG photos.
+
+### 🗜️ 5. Lossless PDF Compression (`.pdf`)
 - Powered by **QPDF** (with a lossless `pypdf` stream recompression fallback).
 - Performs lossless object stream generation, stream recompression, and unreferenced object removal.
-- **Never downsamples images** or introduces lossy compression artifacts.
-- **Genuine Savings Reporting**: Measures and returns `X-Original-Size`, `X-Compressed-Size`, and `X-Percent-Saved`. If a file is already optimized, PrivDoc delivers the original unbloated file and clearly informs the user that the document is already optimally structured.
+- **Never downsamples images** in default mode. Includes an optional strong compression mode for heavy photographic documents.
+- **Genuine Savings Reporting**: Measures and returns `X-Original-Size`, `X-Compressed-Size`, and `X-Percent-Saved`.
 
-### 📦 4. Word Compression (`.docx`)
+### 📦 6. Word Compression (`.docx`)
 - **Safe Mode (Default)**: Recompresses archive entries with maximum Deflate compression (`compresslevel=9`), trimming archive slack safely without touching media or XML fidelity.
-- **Optional Embedded-Image Optimization**: When selected, inspects oversized media in `word/media/` and optimizes high-resolution photos with Pillow, showing a transparent advisory that image fidelity may be slightly reduced.
+- **Optional Embedded-Image Optimization**: When selected, inspects oversized media in `word/media/` and optimizes high-resolution photos with Pillow.
+
 
 ---
 
@@ -56,24 +69,27 @@ Most document conversion websites store user files on disks, retain documents in
 d:\convert\
 ├── app.py                      # Flask application factory, routes & error handlers
 ├── config.py                   # Limits, MIME/magic rules, binary auto-detection
-├── run.py                      # Application dev launcher
-├── requirements.txt            # Python dependencies
-├── pyproject.toml              # Project metadata
+├── run.py                      # Application dev launcher (defaults to 127.0.0.1:5000)
+├── start_privdoc.bat           # Windows quick-start launcher
+├── requirements.txt            # Core runtime Python dependencies
+├── requirements-dev.txt        # Development & test-fixture dependencies
 ├── services\                   # Modular business logic
 │   ├── __init__.py             # Public exports
 │   ├── cleanup.py              # Ephemeral workspace & guaranteed disk cleanup
 │   ├── validator.py            # Filetype, magic bytes & size validator
-│   ├── word_to_pdf.py          # Headless LibreOffice conversion service
+│   ├── office_to_pdf.py        # Headless LibreOffice conversion service (Word, Excel, PPT)
 │   ├── pdf_to_word.py          # pdf2docx service with scanned/OCR detection
+│   ├── pdf_tools.py            # PDF merge and page extraction/split service
 │   ├── compress_pdf.py         # Lossless QPDF & pypdf compression service
-│   └── compress_word.py        # Safe DOCX Deflate & image optimizer
+│   ├── compress_word.py        # Safe DOCX Deflate & image optimizer
+│   └── metadata_scrubber.py    # Author, tracking & EXIF metadata sanitizer
 ├── static\
 │   ├── css\
-│   │   └── style.css           # Modern dark/light design system & glassmorphism
+│   │   └── style.css           # Privacy-first design system with native system fonts
 │   └── js\
 │       └── app.js              # Vanilla JS drag-and-drop, tabs & async flows
 ├── templates\
-│   └── index.html              # Clean semantic HTML5 web interface
+│   └── index.html              # Clean semantic HTML5 web interface (zero external CDN calls)
 └── tests\
     ├── generate_test_fixtures.py # Generates benchmark test documents
     ├── test_services.py        # Unit & integration tests for services
@@ -87,12 +103,20 @@ d:\convert\
 
 ### Prerequisites
 - **Python 3.10+** (Python 3.12 recommended)
-- **LibreOffice** (for Word to PDF)
-- **QPDF** (for Lossless PDF Compression)
+- **LibreOffice** (Required for Office to PDF: `.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`)
+- **QPDF** (Required for Lossless PDF Compression; falls back to `pypdf` if missing)
 
 ### Step 1: Install Python Dependencies
+
+**Core Runtime (Production):**
 ```bash
 pip install -r requirements.txt
+```
+
+**Development & Test Fixture Tools (Optional):**
+To generate synthetic test documents (`openpyxl`, `python-pptx`), install the development manifest:
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ### Step 2: Install LibreOffice
@@ -104,7 +128,7 @@ pip install -r requirements.txt
   *PrivDoc also automatically detects portable installations in `d:\convert\libreoffice\program\soffice.exe` or standard `Program Files`.*
 - **Ubuntu / Debian**:
   ```bash
-  sudo apt-get update && sudo apt-get install -y libreoffice-core libreoffice-writer
+  sudo apt-get update && sudo apt-get install -y libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress
   ```
 - **macOS**:
   ```bash
@@ -138,13 +162,34 @@ pip install -r requirements.txt
 
 ## 5. Running the Application
 
-### Development Server:
+### Windows Quick Launch
+Double-click `start_privdoc.bat` in the project root. This opens your browser to `http://localhost:5000` and starts the local server.
+
+### Command Line / Development Server
 ```bash
 python run.py
 ```
-Open your browser at `http://127.0.0.1:5000`.
+Open your browser at `http://127.0.0.1:5000` or `http://localhost:5000`.
 
-### Production Deployment:
+### Safe Localhost-Only Default & LAN Sharing
+By default, PrivDoc binds strictly to `127.0.0.1` (localhost) to ensure other devices on your Wi-Fi or local network cannot access the converter or submit documents.
+
+**To explicitly enable Local Area Network (LAN) access:**
+Set the `HOST` environment variable to `0.0.0.0`:
+* **Windows (PowerShell)**:
+  ```powershell
+  $env:HOST="0.0.0.0"; python run.py
+  ```
+* **Windows (Command Prompt)**:
+  ```cmd
+  set HOST=0.0.0.0 && python run.py
+  ```
+* **Linux / macOS**:
+  ```bash
+  HOST=0.0.0.0 python run.py
+  ```
+
+### Production Deployment
 Run with a production WSGI server (such as Gunicorn or Waitress) behind an HTTPS reverse proxy (Nginx or Caddy):
 
 ```bash
@@ -167,29 +212,30 @@ waitress-serve --listen=127.0.0.1:5000 "app:app"
 The test suite validates format conversions, fidelity preservation, scanned document detection, lossless compression calculations, temporary file purging, and security headers:
 
 ```bash
-# 1. Generate rich test documents (tables, diagrams, scans, malformed files)
+# Run full automated test suite (all unit and integration tests)
+python -m unittest discover -s tests
+
+# (Optional) Regenerate synthetic test documents
 python tests/generate_test_fixtures.py
-
-# 2. Run service-level unit & integration tests
-python tests/test_services.py
-
-# 3. Run full end-to-end Flask API route tests
-python tests/test_api_routes.py
 ```
 
 ### Test Coverage Highlights:
 - ✅ **Guaranteed File Cleanup**: Asserts workspace directory and all files cease to exist after successful execution and after simulated unhandled exceptions.
-- ✅ **Word to PDF Fidelity**: Verifies multi-row tables, headers, footers, headings, and images convert cleanly to selectable PDF text.
+- ✅ **Office to PDF Fidelity**: Verifies Word, Excel, and PowerPoint documents convert cleanly to selectable PDF text.
 - ✅ **PDF to Word Text Mode**: Confirms reconstruction of editable Word document tables and paragraphs.
 - ✅ **Scanned Document Detection**: Verifies pure-raster PDF scans trigger `ScannedDocumentError` with actionable OCR instructions.
 - ✅ **Lossless PDF Compression**: Asserts original vs compressed size calculations, ensuring files never bloat.
 - ✅ **Word Archive & Media Optimizer**: Asserts safe Deflate compression and verifies embedded image shrinking with Pillow.
+- ✅ **Metadata Sanitizer**: Asserts removal of author properties, XML tracking packets, and image EXIF GPS metadata.
 - ✅ **API Security & Headers**: Confirms `no-store` cache headers, sanitization of malicious paths (`../../`), rejection of empty files, and absence of internal stack traces in JSON error payloads.
 
 ---
 
 ## 7. Quality Boundaries & Realistic Limitations
 
-- **Formatting Fidelity**: Word to PDF and PDF to Word rely on standard OpenXML and PDF specifications. Highly exotic third-party fonts, proprietary ActiveX controls, or complex VBA macros cannot be guaranteed to render identically across platforms.
-- **Scanned Documents**: pdf2docx requires text streams. Image-only scans must be processed with an OCR tool before conversion.
-- **Lossless Compression Limits**: Modern PDF documents containing already compressed assets (e.g. pre-compressed JPEGs) cannot be reduced losslessly without image downsampling. PrivDoc will not artificially degrade image quality in lossless mode.
+- **Formatting Fidelity**: Word to PDF and PDF to Word rely on standard OpenXML and PDF specifications. Highly exotic third-party fonts not installed on the server will trigger font substitution. Complex Excel print pagination without pre-defined print areas may wrap across multiple pages.
+- **Scanned Documents**: `pdf2docx` requires text streams. Image-only scans are detected upfront and rejected with an OCR recommendation. PrivDoc does not bundle a heavy OCR engine by default.
+- **Lossless Compression Limits**: Modern PDF documents containing already compressed assets (e.g. pre-compressed JPEGs) cannot be reduced losslessly without image downsampling. PrivDoc will not artificially degrade image quality in lossless mode and prevents bloating by returning the original file if no reduction is achieved.
+- **Metadata Sanitization Scope**: The metadata scrubber clears standard document properties (author, title, revision, timestamps), application/custom XML properties, and camera EXIF metadata in embedded photos. It **does not** redact inline text, inline comments, tracked changes in the document body (`w:ins`/`w:del`), footnotes, or macros.
+- **Network Privacy**: PrivDoc requires zero external cloud APIs. External Google Fonts CDN requests have been removed, rendering using native system font stacks (`system-ui`, `ui-monospace`) with zero third-party browser network connections.
+

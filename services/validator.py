@@ -2,7 +2,7 @@ import re
 import zipfile
 from pathlib import Path
 from werkzeug.datastructures import FileStorage
-from config import ALLOWED_FORMATS, MAX_CONTENT_LENGTH
+from config import ALLOWED_FORMATS, MAX_CONTENT_LENGTH, OFFICE_FORMATS, SANITIZABLE_FORMATS
 
 class ValidationError(Exception):
     """Raised when file validation fails."""
@@ -48,8 +48,20 @@ def validate_upload(file_storage: FileStorage, expected_type: str | None = None)
     if ext not in ALLOWED_FORMATS:
         raise ValidationError(f"Unsupported file format: '.{ext}'. Supported formats: {', '.join(ALLOWED_FORMATS.keys())}.")
 
-    if expected_type and ext != expected_type.lower():
-        raise ValidationError(f"Expected a .{expected_type} file for this operation, but received .{ext}.")
+    if expected_type:
+        exp = expected_type.lower()
+        if exp == "office":
+            if ext not in OFFICE_FORMATS:
+                raise ValidationError(f"Expected an Office document (Word, Excel, or PowerPoint), but received .{ext}.")
+        elif exp == "sanitizable":
+            if ext not in SANITIZABLE_FORMATS:
+                raise ValidationError(f"Expected a sanitizable document (PDF, Word, Excel, PowerPoint), but received .{ext}.")
+        elif exp == "docx":
+            # For backward compatibility with Word routes (accept docx or doc)
+            if ext not in ["docx", "doc"]:
+                raise ValidationError(f"Expected a .docx or .doc file for this operation, but received .{ext}.")
+        elif ext != exp:
+            raise ValidationError(f"Expected a .{expected_type} file for this operation, but received .{ext}.")
 
     # Peek at first 1024 bytes for magic signature validation
     stream = file_storage.stream
@@ -67,26 +79,26 @@ def validate_upload(file_storage: FileStorage, expected_type: str | None = None)
     if not has_valid_magic:
         raise ValidationError(f"File content does not match the '.{ext}' specification (invalid file header).")
 
-    # Additional DOCX integrity inspection (protect against zip bombs & corrupted zips)
-    if ext == "docx":
+    # Additional OpenXML integrity inspection (protect against zip bombs & corrupted zips)
+    if ext in ["docx", "xlsx", "pptx"]:
         try:
             stream.seek(0)
             with zipfile.ZipFile(stream) as zf:
-                # Check for word/document.xml or [Content_Types].xml
                 namelist = zf.namelist()
                 if "[Content_Types].xml" not in namelist:
-                    raise ValidationError("Invalid DOCX document: Missing [Content_Types].xml structure.")
+                    raise ValidationError(f"Invalid {ext.upper()} document: Missing [Content_Types].xml structure.")
                 
                 # Check uncompressed size to prevent zip-bomb / memory exhaustion
                 total_uncompressed = sum(info.file_size for info in zf.infolist())
                 if total_uncompressed > 200 * 1024 * 1024:  # 200MB expansion limit
-                    raise ValidationError("DOCX exceeds maximum safe decompression limit (potential zip bomb).")
+                    raise ValidationError(f"{ext.upper()} exceeds maximum safe decompression limit (potential zip bomb).")
             stream.seek(0)
         except zipfile.BadZipFile:
-            raise ValidationError("Corrupted or malformed DOCX file.")
+            raise ValidationError(f"Corrupted or malformed {ext.upper()} file.")
         except ValidationError:
             raise
         except Exception as e:
-            raise ValidationError(f"Unable to verify DOCX structure: {str(e)}")
+            raise ValidationError(f"Unable to verify {ext.upper()} structure: {str(e)}")
 
     return ext
+

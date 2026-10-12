@@ -21,12 +21,36 @@ ALLOWED_FORMATS = {
         "magic": [b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"],
         "max_size": 50 * 1024 * 1024
     },
+    "xlsx": {
+        "mime": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/zip"],
+        "magic": [b"PK\x03\x04"],
+        "max_size": 50 * 1024 * 1024
+    },
+    "xls": {
+        "mime": ["application/vnd.ms-excel", "application/msword", "application/octet-stream"],
+        "magic": [b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"],
+        "max_size": 50 * 1024 * 1024
+    },
+    "pptx": {
+        "mime": ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/zip"],
+        "magic": [b"PK\x03\x04"],
+        "max_size": 50 * 1024 * 1024
+    },
+    "ppt": {
+        "mime": ["application/vnd.ms-powerpoint", "application/octet-stream"],
+        "magic": [b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"],
+        "max_size": 50 * 1024 * 1024
+    },
     "pdf": {
         "mime": ["application/pdf"],
         "magic": [b"%PDF-"],
         "max_size": 50 * 1024 * 1024
     }
 }
+
+OFFICE_FORMATS = ["docx", "doc", "xlsx", "xls", "pptx", "ppt"]
+SANITIZABLE_FORMATS = ["pdf", "docx", "xlsx", "pptx"]
+
 
 def find_libreoffice_binary() -> str | None:
     """Detect LibreOffice headless executable across environments."""

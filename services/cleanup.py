@@ -4,7 +4,7 @@ import stat
 import tempfile
 import secrets
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Optional
 
 def _handle_remove_readonly(func, path, exc_info):
     """Clear the readonly bit and reattempt removal on Windows."""
@@ -47,14 +47,3 @@ class EphemeralWorkspace:
         # Generate 16 random hex bytes (32 chars) - never trust user input
         rand_name = f"{secrets.token_hex(16)}{suffix}"
         return self.path / rand_name
-
-def create_cleanup_stream(data_stream: Generator[bytes, None, None], cleanup_callback) -> Generator[bytes, None, None]:
-    """
-    Wraps a byte generator to ensure the cleanup callback is executed
-    immediately when the stream finishes or if the client disconnects.
-    """
-    try:
-        for chunk in data_stream:
-            yield chunk
-    finally:
-        cleanup_callback()

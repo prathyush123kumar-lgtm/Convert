@@ -1,7 +1,6 @@
 import pypdf
 from pathlib import Path
 from pdf2docx import Converter
-from services.cleanup import EphemeralWorkspace
 
 class ScannedDocumentError(Exception):
     """Raised when PDF is detected to be scanned or image-only with no text layer."""
@@ -72,7 +71,7 @@ def inspect_pdf_text_suitability(input_pdf: Path) -> dict:
         "pages_with_text": pages_with_text
     }
 
-def convert_pdf_to_word(input_pdf: Path, output_docx: Path, workspace: EphemeralWorkspace) -> dict:
+def convert_pdf_to_word(input_pdf: Path, output_docx: Path) -> dict:
     """
     Converts a text-based PDF to DOCX using pdf2docx.
     First performs scanned-document and encryption detection.

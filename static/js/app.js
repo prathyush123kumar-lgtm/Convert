@@ -1,12 +1,12 @@
 /**
- * PrivDoc - Privacy-First Document Converter & Compressor
+ * PrivDoc - Privacy-First Document Suite
  * Client-Side Controller
  */
 
 document.addEventListener('DOMContentLoaded', () => {
   // --- State ---
-  let selectedFile = null;
-  let currentAction = 'word-to-pdf';
+  let selectedFiles = []; // Array of File objects
+  let currentAction = 'office-to-pdf';
   let activeDownloadUrl = null;
 
   // --- DOM Elements ---
@@ -16,16 +16,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const formatConstraintBadge = document.getElementById('formatConstraintBadge');
 
   const dropzone = document.getElementById('dropzone');
+  const dropzonePrompt = document.getElementById('dropzonePrompt');
   const fileInput = document.getElementById('fileInput');
   const browseBtn = document.getElementById('browseBtn');
 
   const fileCard = document.getElementById('fileCard');
+  const singleFileInfo = document.getElementById('singleFileInfo');
   const fileNameDisplay = document.getElementById('fileNameDisplay');
   const fileSizeDisplay = document.getElementById('fileSizeDisplay');
+
+  const multiFilesBox = document.getElementById('multiFilesBox');
+  const multiFilesCount = document.getElementById('multiFilesCount');
+  const fileChipsContainer = document.getElementById('fileChipsContainer');
+
+  const splitPdfOptions = document.getElementById('splitPdfOptions');
+  const pageRangeInput = document.getElementById('pageRangeInput');
+  const sanitizeOptions = document.getElementById('sanitizeOptions');
   const wordCompressOptions = document.getElementById('wordCompressOptions');
   const optimizeImagesToggle = document.getElementById('optimizeImagesToggle');
   const pdfCompressOptions = document.getElementById('pdfCompressOptions');
   const strongPdfToggle = document.getElementById('strongPdfToggle');
+
   const removeFileBtn = document.getElementById('removeFileBtn');
   const processBtn = document.getElementById('processBtn');
   const processBtnText = document.getElementById('processBtnText');
@@ -37,12 +48,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultCard = document.getElementById('resultCard');
   const resultTitle = document.getElementById('resultTitle');
   const resultSubtitle = document.getElementById('resultSubtitle');
+
   const compressionStats = document.getElementById('compressionStats');
   const statOriginalSize = document.getElementById('statOriginalSize');
   const statCompressedSize = document.getElementById('statCompressedSize');
   const statSavingsBadge = document.getElementById('statSavingsBadge');
   const statSavingsPercent = document.getElementById('statSavingsPercent');
   const compressionNote = document.getElementById('compressionNote');
+
+  const mergeStatsRow = document.getElementById('mergeStatsRow');
+  const statFilesMerged = document.getElementById('statFilesMerged');
+  const statTotalPages = document.getElementById('statTotalPages');
+
+  const splitStatsRow = document.getElementById('splitStatsRow');
+  const statOriginalPages = document.getElementById('statOriginalPages');
+  const statExtractedPages = document.getElementById('statExtractedPages');
+
+  const sanitizeStatsRow = document.getElementById('sanitizeStatsRow');
+  const statFieldsScrubbed = document.getElementById('statFieldsScrubbed');
+  const statImagesSanitized = document.getElementById('statImagesSanitized');
+
   const downloadBtn = document.getElementById('downloadBtn');
   const downloadBtnText = document.getElementById('downloadBtnText');
   const resetBtn = document.getElementById('resetBtn');
@@ -58,14 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Action Metadata Map ---
   const ACTION_CONFIG = {
-    'word-to-pdf': {
-      endpoint: '/api/convert/word-to-pdf',
-      accept: '.docx,.doc',
-      acceptDesc: 'Accepts .DOCX, .DOC',
-      allowedExts: ['docx', 'doc'],
+    'office-to-pdf': {
+      endpoint: '/api/convert/office-to-pdf',
+      accept: '.docx,.doc,.xlsx,.xls,.pptx,.ppt',
+      acceptDesc: 'Word, Excel, or PowerPoint (.docx, .xlsx, .pptx)',
+      allowedExts: ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt'],
       btnText: 'Convert to PDF',
-      statusText: 'Converting Word to PDF...',
-      hint: 'Convert Microsoft Word documents to PDF while preserving formatting, tables, and typography.',
+      statusText: 'Converting Office document to PDF...',
+      hint: 'Convert Word (.docx), Excel (.xlsx), or PowerPoint (.pptx) documents directly to PDF with preserved formatting.',
       downloadExt: '.pdf',
       resultTitle: 'PDF Ready for Download',
       isCompress: false
@@ -81,6 +106,30 @@ document.addEventListener('DOMContentLoaded', () => {
       downloadExt: '.docx',
       resultTitle: 'Word Document Ready',
       isCompress: false
+    },
+    'merge-pdf': {
+      endpoint: '/api/pdf/merge',
+      accept: '.pdf',
+      acceptDesc: 'Accepts 2+ PDF files',
+      allowedExts: ['pdf'],
+      btnText: 'Merge PDFs',
+      statusText: 'Merging PDF documents...',
+      hint: 'Combine 2 or more PDF documents into a single ordered document in isolated ephemeral memory.',
+      downloadExt: '_merged.pdf',
+      resultTitle: 'Merged PDF Ready',
+      isMulti: true
+    },
+    'split-pdf': {
+      endpoint: '/api/pdf/split',
+      accept: '.pdf',
+      acceptDesc: 'Accepts .PDF',
+      allowedExts: ['pdf'],
+      btnText: 'Extract Pages',
+      statusText: 'Extracting selected pages...',
+      hint: 'Extract specific pages or page ranges from a PDF (e.g. 1-3, 5).',
+      downloadExt: '_extracted.pdf',
+      resultTitle: 'Extracted PDF Ready',
+      hasPageRange: true
     },
     'compress-pdf': {
       endpoint: '/api/compress/pdf',
@@ -105,6 +154,18 @@ document.addEventListener('DOMContentLoaded', () => {
       downloadExt: '_compressed.docx',
       resultTitle: 'Compressed Word Document Ready',
       isCompress: true
+    },
+    'sanitize-meta': {
+      endpoint: '/api/sanitize/metadata',
+      accept: '.pdf,.docx,.xlsx,.pptx',
+      acceptDesc: 'Accepts PDF, DOCX, XLSX, PPTX',
+      allowedExts: ['pdf', 'docx', 'xlsx', 'pptx'],
+      btnText: 'Scrub Metadata',
+      statusText: 'Purging tracking tags and hidden metadata...',
+      hint: 'Strip hidden author names, timestamps, edit revisions, and EXIF camera GPS tags from documents and embedded images.',
+      downloadExt: '_sanitized',
+      resultTitle: 'Sanitized Document Ready',
+      isSanitize: true
     }
   };
 
@@ -133,23 +194,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Format Bytes Utility ---
   const formatBytes = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // --- Check Backend Binary Status ---
+  // --- Check Backend Status ---
   const checkSystemStatus = async () => {
     try {
       const res = await fetch('/api/system-status');
       if (res.ok) {
-        const data = await res.json();
         const bullet = engineStatusIndicator.querySelector('.status-bullet');
-        if (bullet) {
-          bullet.className = 'status-bullet ready';
-        }
+        if (bullet) bullet.className = 'status-bullet ready';
         engineStatusText.textContent = 'Engines ready · Ephemeral memory active';
       }
     } catch (e) {
@@ -177,6 +235,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   dismissErrorBtn.addEventListener('click', hideError);
 
+  // --- Update Option Panels Visibility ---
+  const updateOptionPanels = () => {
+    wordCompressOptions.classList.toggle('hidden', currentAction !== 'compress-word');
+    pdfCompressOptions.classList.toggle('hidden', currentAction !== 'compress-pdf');
+    splitPdfOptions.classList.toggle('hidden', currentAction !== 'split-pdf');
+    sanitizeOptions.classList.toggle('hidden', currentAction !== 'sanitize-meta');
+  };
+
   // --- Tab Selection ---
   actionTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -195,31 +261,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Update constraints & hints
       fileInput.setAttribute('accept', config.accept);
+      fileInput.multiple = Boolean(config.isMulti);
       formatConstraintBadge.textContent = config.acceptDesc;
       actionHintText.textContent = config.hint;
       processBtnText.textContent = config.btnText;
 
-      // Compression option visibility
-      if (currentAction === 'compress-word') {
-        wordCompressOptions.classList.remove('hidden');
-        pdfCompressOptions.classList.add('hidden');
-      } else if (currentAction === 'compress-pdf') {
-        pdfCompressOptions.classList.remove('hidden');
-        wordCompressOptions.classList.add('hidden');
-      } else {
-        wordCompressOptions.classList.add('hidden');
-        pdfCompressOptions.classList.add('hidden');
-      }
+      dropzonePrompt.textContent = config.isMulti 
+        ? 'Drag & drop 2 or more PDF files here' 
+        : 'Drag & drop your document here';
 
-      // If a file was already loaded, verify compatibility
-      if (selectedFile) {
-        const ext = selectedFile.name.split('.').pop().toLowerCase();
-        if (!config.allowedExts.includes(ext)) {
+      updateOptionPanels();
+
+      // If files were already loaded, verify compatibility
+      if (selectedFiles.length > 0) {
+        const invalid = selectedFiles.some(f => {
+          const ext = f.name.split('.').pop().toLowerCase();
+          return !config.allowedExts.includes(ext);
+        });
+
+        if (invalid || (config.isMulti && selectedFiles.length < 2)) {
           resetAll();
-          showError(
-            'Incompatible Document Type',
-            `Selected file '.${ext}' is not supported for ${tab.querySelector('.tab-label').textContent}. Please upload a ${config.acceptDesc}.`
-          );
         }
       }
     });
@@ -242,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dropzone.addEventListener('drop', (e) => {
     const dt = e.dataTransfer;
     if (dt && dt.files && dt.files.length > 0) {
-      handleFileSelected(dt.files[0]);
+      handleFilesSelected(Array.from(dt.files));
     }
   });
 
@@ -257,56 +318,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
   fileInput.addEventListener('change', () => {
     if (fileInput.files && fileInput.files.length > 0) {
-      handleFileSelected(fileInput.files[0]);
+      handleFilesSelected(Array.from(fileInput.files));
     }
   });
 
-  // --- File Selection Processor ---
-  const handleFileSelected = (file) => {
+  // --- Files Selection Handler ---
+  const handleFilesSelected = (files) => {
     hideError();
-    if (!file) return;
+    if (!files || files.length === 0) return;
 
     const config = ACTION_CONFIG[currentAction];
-    const ext = file.name.split('.').pop().toLowerCase();
 
-    if (!config.allowedExts.includes(ext)) {
-      showError(
-        'Invalid File Type',
-        `File '.${ext}' does not match the required format for ${config.btnText}. Please provide a ${config.allowedExts.map(e => '.' + e.toUpperCase()).join(' or ')} document.`
-      );
-      return;
+    // Validate extensions
+    for (const file of files) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!config.allowedExts.includes(ext)) {
+        showError(
+          'Invalid File Type',
+          `File '${file.name}' does not match the required format for ${config.btnText}. Please provide ${config.acceptDesc}.`
+        );
+        return;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        showError('File Too Large', `'${file.name}' exceeds the 50 MB limit.`);
+        return;
+      }
     }
 
-    if (file.size > 50 * 1024 * 1024) {
-      showError('File Too Large', 'File exceeds the maximum safe limit of 50 MB.');
-      return;
+    if (config.isMulti) {
+      if (files.length < 2) {
+        showError('Multiple Files Required', 'Please select at least 2 PDF files to merge.');
+        return;
+      }
+      selectedFiles = files;
+      renderMultiFilesList();
+    } else {
+      selectedFiles = [files[0]];
+      renderSingleFile(files[0]);
     }
 
-    selectedFile = file;
-    fileNameDisplay.textContent = file.name;
-    fileSizeDisplay.textContent = formatBytes(file.size);
-
-    // Show card, hide dropzone and results
+    // Toggle view
     dropzone.classList.add('hidden');
     fileCard.classList.remove('hidden');
     resultCard.classList.add('hidden');
     statusPanel.classList.add('hidden');
 
-    if (currentAction === 'compress-word') {
-      wordCompressOptions.classList.remove('hidden');
-      pdfCompressOptions.classList.add('hidden');
-    } else if (currentAction === 'compress-pdf') {
-      pdfCompressOptions.classList.remove('hidden');
-      wordCompressOptions.classList.add('hidden');
-    } else {
-      wordCompressOptions.classList.add('hidden');
-      pdfCompressOptions.classList.add('hidden');
-    }
+    updateOptionPanels();
+  };
+
+  const renderSingleFile = (file) => {
+    singleFileInfo.classList.remove('hidden');
+    multiFilesBox.classList.add('hidden');
+    fileNameDisplay.textContent = file.name;
+    fileSizeDisplay.textContent = formatBytes(file.size);
+  };
+
+  const renderMultiFilesList = () => {
+    singleFileInfo.classList.add('hidden');
+    multiFilesBox.classList.remove('hidden');
+
+    const totalBytes = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+    multiFilesCount.textContent = `${selectedFiles.length} files (${formatBytes(totalBytes)})`;
+
+    fileChipsContainer.innerHTML = '';
+    selectedFiles.forEach((file, index) => {
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = `
+        <span class="chip-name">${index + 1}. ${file.name}</span>
+        <span class="chip-size">${formatBytes(file.size)}</span>
+      `;
+      fileChipsContainer.appendChild(chip);
+    });
   };
 
   // --- Remove / Reset Button ---
   const resetAll = () => {
-    selectedFile = null;
+    selectedFiles = [];
     fileInput.value = '';
     hideError();
 
@@ -324,9 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
   removeFileBtn.addEventListener('click', resetAll);
   resetBtn.addEventListener('click', resetAll);
 
-  // --- Process Action (Convert / Compress) ---
+  // --- Process Action (Convert / Merge / Split / Scrub / Compress) ---
   processBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
+    if (!selectedFiles || selectedFiles.length === 0) return;
 
     hideError();
     const config = ACTION_CONFIG[currentAction];
@@ -338,14 +426,20 @@ document.addEventListener('DOMContentLoaded', () => {
     statusDesc.textContent = 'Allocating ephemeral sandbox and processing bytes...';
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
 
+    if (config.isMulti) {
+      selectedFiles.forEach(f => formData.append('files', f));
+    } else {
+      formData.append('file', selectedFiles[0]);
+    }
+
+    // Additional options
     if (currentAction === 'compress-word') {
-      const optImg = optimizeImagesToggle ? optimizeImagesToggle.checked : false;
-      formData.append('optimize_images', optImg ? 'true' : 'false');
+      formData.append('optimize_images', optimizeImagesToggle.checked ? 'true' : 'false');
     } else if (currentAction === 'compress-pdf') {
-      const strongPdf = strongPdfToggle ? strongPdfToggle.checked : false;
-      formData.append('strong_mode', strongPdf ? 'true' : 'false');
+      formData.append('strong_mode', strongPdfToggle.checked ? 'true' : 'false');
+    } else if (currentAction === 'split-pdf') {
+      formData.append('pages', (pageRangeInput.value || '1').trim());
     }
 
     try {
@@ -358,77 +452,86 @@ document.addEventListener('DOMContentLoaded', () => {
         let errData = {};
         try {
           errData = await response.json();
-        } catch (_) {
-          errData = { error: `Server responded with status code ${response.status}.` };
-        }
-
-        const isScanned = (errData.code === 'SCANNED_DOCUMENT' || errData.ocr_required === true);
-        showError(
-          isScanned ? 'Scanned Document Detected' : 'Operation Failed',
-          errData.error || 'Failed to complete document operation.',
-          isScanned
-        );
+        } catch (_) {}
 
         statusPanel.classList.add('hidden');
         fileCard.classList.remove('hidden');
+
+        const isScanned = errData.code === 'SCANNED_DOCUMENT';
+        const title = isScanned ? 'Scanned Document Detected' : 'Processing Failed';
+        const msg = errData.error || `Server responded with status ${response.status}.`;
+        showError(title, msg, isScanned);
         return;
       }
 
-      // Success: read converted blob
-      const blob = await response.blob();
-      if (activeDownloadUrl) {
-        URL.revokeObjectURL(activeDownloadUrl);
-      }
-      activeDownloadUrl = URL.createObjectURL(blob);
-
-      // Extract filename from Content-Disposition header if available
-      let downloadFilename = selectedFile.name.replace(/\.[^/.]+$/, "") + config.downloadExt;
-      const disposition = response.headers.get('Content-Disposition');
-      if (disposition && disposition.includes('filename=')) {
-        const match = disposition.match(/filename="?([^";]+)"?/);
-        if (match && match[1]) {
-          downloadFilename = match[1];
-        }
-      }
-
-      // Populate Result Card
-      resultTitle.textContent = config.resultTitle;
-      downloadBtn.href = activeDownloadUrl;
-      downloadBtn.setAttribute('download', downloadFilename);
-      downloadBtnText.textContent = `Download ${downloadFilename} (${formatBytes(blob.size)})`;
-
-      // Handle Compression stats
-      if (config.isCompress) {
-        compressionStats.classList.remove('hidden');
-        const origBytes = parseInt(response.headers.get('X-Original-Size') || selectedFile.size, 10);
-        const compBytes = parseInt(response.headers.get('X-Compressed-Size') || blob.size, 10);
-        const percentSaved = parseFloat(response.headers.get('X-Percent-Saved') || '0');
-        const isReduced = response.headers.get('X-Is-Reduced') === '1';
-
-        statOriginalSize.textContent = formatBytes(origBytes);
-        statCompressedSize.textContent = formatBytes(compBytes);
-        statSavingsPercent.textContent = `${percentSaved}%`;
-
-        compressionNote.classList.remove('hidden');
-        if (isReduced) {
-          statSavingsBadge.style.display = 'block';
-          compressionNote.textContent = `✓ Document losslessly reduced by ${percentSaved}%. Output size is ${formatBytes(compBytes)}.`;
-        } else {
-          statSavingsBadge.style.display = 'none';
-          compressionNote.textContent = 'ℹ️ This document is already optimally structured. No further lossless reduction could be achieved without discarding visual information.';
-        }
-      } else {
-        compressionStats.classList.add('hidden');
-        compressionNote.classList.add('hidden');
-      }
-
+      // Hide panels
       statusPanel.classList.add('hidden');
       resultCard.classList.remove('hidden');
+      resultTitle.textContent = config.resultTitle;
+
+      // Extract filename from Content-Disposition
+      let downloadFilename = 'document' + config.downloadExt;
+      const disposition = response.headers.get('Content-Disposition');
+      if (disposition && disposition.includes('filename=')) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          downloadFilename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      // Display dynamic metric stats
+      compressionStats.classList.add('hidden');
+      compressionNote.classList.add('hidden');
+      mergeStatsRow.classList.add('hidden');
+      splitStatsRow.classList.add('hidden');
+      sanitizeStatsRow.classList.add('hidden');
+
+      if (config.isCompress) {
+        compressionStats.classList.remove('hidden');
+        const orig = parseInt(response.headers.get('X-Original-Size') || '0', 10);
+        const comp = parseInt(response.headers.get('X-Compressed-Size') || '0', 10);
+        const saved = parseFloat(response.headers.get('X-Percent-Saved') || '0');
+        const isReduced = response.headers.get('X-Is-Reduced') === '1';
+
+        statOriginalSize.textContent = formatBytes(orig);
+        statCompressedSize.textContent = formatBytes(comp);
+        statSavingsPercent.textContent = `${saved.toFixed(1)}%`;
+
+        if (isReduced) {
+          statSavingsBadge.className = 'stat-badge';
+          compressionNote.classList.add('hidden');
+        } else {
+          statSavingsBadge.className = 'stat-badge unreduced';
+          compressionNote.textContent = 'Document is already optimized to maximum lossless density.';
+          compressionNote.classList.remove('hidden');
+        }
+      } else if (currentAction === 'merge-pdf') {
+        mergeStatsRow.classList.remove('hidden');
+        statFilesMerged.textContent = `${response.headers.get('X-Files-Merged') || selectedFiles.length} Files`;
+        statTotalPages.textContent = `${response.headers.get('X-Total-Pages') || '—'} Pages`;
+      } else if (currentAction === 'split-pdf') {
+        splitStatsRow.classList.remove('hidden');
+        statOriginalPages.textContent = `${response.headers.get('X-Original-Pages') || '—'} Pages`;
+        statExtractedPages.textContent = `${response.headers.get('X-Extracted-Pages') || '—'} Pages`;
+      } else if (currentAction === 'sanitize-meta') {
+        sanitizeStatsRow.classList.remove('hidden');
+        statFieldsScrubbed.textContent = `${response.headers.get('X-Fields-Scrubbed') || '0'} Fields`;
+        statImagesSanitized.textContent = `${response.headers.get('X-Images-Sanitized') || '0'} Images`;
+      }
+
+      // Create download blob
+      const blob = await response.blob();
+      if (activeDownloadUrl) URL.revokeObjectURL(activeDownloadUrl);
+      activeDownloadUrl = URL.createObjectURL(blob);
+
+      downloadBtn.href = activeDownloadUrl;
+      downloadBtn.download = downloadFilename;
+      downloadBtnText.textContent = `Download ${downloadFilename}`;
 
     } catch (err) {
-      showError('Connection Error', 'Network connection interrupted or server timeout. Please verify your connection and try again.');
       statusPanel.classList.add('hidden');
       fileCard.classList.remove('hidden');
+      showError('Connection Error', 'Could not communicate with the local conversion engine.');
     }
   });
 });

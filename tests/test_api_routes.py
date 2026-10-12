@@ -158,5 +158,91 @@ class TestAPIRoutes(unittest.TestCase):
         # Never leak traceback in JSON
         self.assertNotIn("Traceback", res3.get_data(as_text=True))
 
+    def test_office_to_pdf_routes(self):
+        """Verify Excel and PowerPoint files convert to PDF via API."""
+        # 1. Excel to PDF
+        xlsx_path = FIXTURES_DIR / "spreadsheet.xlsx"
+        with open(xlsx_path, "rb") as f:
+            res1 = self.client.post(
+                "/api/convert/office-to-pdf",
+                data={"file": (f, "spreadsheet.xlsx")},
+                content_type="multipart/form-data"
+            )
+        self.assertEqual(res1.status_code, 200)
+        self.assertEqual(res1.headers.get("Content-Type"), "application/pdf")
+        self.assertTrue(res1.data.startswith(b"%PDF-"))
+
+        # 2. PowerPoint to PDF
+        pptx_path = FIXTURES_DIR / "presentation.pptx"
+        with open(pptx_path, "rb") as f:
+            res2 = self.client.post(
+                "/api/convert/office-to-pdf",
+                data={"file": (f, "presentation.pptx")},
+                content_type="multipart/form-data"
+            )
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.headers.get("Content-Type"), "application/pdf")
+        self.assertTrue(res2.data.startswith(b"%PDF-"))
+
+    def test_pdf_merge_route(self):
+        """Verify merging multiple PDFs via API."""
+        pdf1 = FIXTURES_DIR / "text_document.pdf"
+        pdf2 = FIXTURES_DIR / "multi_page_sample.pdf"
+
+        with open(pdf1, "rb") as f1, open(pdf2, "rb") as f2:
+            res = self.client.post(
+                "/api/pdf/merge",
+                data={"files": [(f1, "doc1.pdf"), (f2, "doc2.pdf")]},
+                content_type="multipart/form-data"
+            )
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.headers.get("Content-Type"), "application/pdf")
+        self.assertIn("X-Files-Merged", res.headers)
+        self.assertEqual(res.headers["X-Files-Merged"], "2")
+        self.assertTrue(res.data.startswith(b"%PDF-"))
+
+    def test_pdf_split_route(self):
+        """Verify page extraction via API."""
+        pdf = FIXTURES_DIR / "multi_page_sample.pdf"
+        with open(pdf, "rb") as f:
+            res = self.client.post(
+                "/api/pdf/split",
+                data={"file": (f, "multi_page_sample.pdf"), "pages": "1, 3"},
+                content_type="multipart/form-data"
+            )
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.headers.get("Content-Type"), "application/pdf")
+        self.assertEqual(res.headers.get("X-Extracted-Pages"), "2")
+        self.assertTrue(res.data.startswith(b"%PDF-"))
+
+    def test_metadata_scrubber_route(self):
+        """Verify metadata scrubber API on PDF and DOCX."""
+        # 1. PDF
+        pdf = FIXTURES_DIR / "text_document.pdf"
+        with open(pdf, "rb") as f:
+            res1 = self.client.post(
+                "/api/sanitize/metadata",
+                data={"file": (f, "text_document.pdf")},
+                content_type="multipart/form-data"
+            )
+        self.assertEqual(res1.status_code, 200)
+        self.assertIn("X-Fields-Scrubbed", res1.headers)
+        self.assertTrue(res1.data.startswith(b"%PDF-"))
+
+        # 2. DOCX
+        docx_file = FIXTURES_DIR / "doc_with_metadata.docx"
+        with open(docx_file, "rb") as f:
+            res2 = self.client.post(
+                "/api/sanitize/metadata",
+                data={"file": (f, "doc_with_metadata.docx")},
+                content_type="multipart/form-data"
+            )
+        self.assertEqual(res2.status_code, 200)
+        self.assertIn("X-Fields-Scrubbed", res2.headers)
+        self.assertTrue(res2.data.startswith(b"PK\x03\x04"))
+
 if __name__ == "__main__":
     unittest.main()
+
