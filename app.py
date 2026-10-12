@@ -178,12 +178,14 @@ def create_app() -> Flask:
         clean_name = sanitize_filename(uploaded_file.filename, default="document")
         out_name = f"{Path(clean_name).stem}_compressed.pdf"
 
+        strong_mode = request.form.get("strong_mode", "false").lower() == "true"
+
         with EphemeralWorkspace(prefix="priv_cmp_pdf_") as ws:
             input_path = ws.secure_path(suffix=f".{ext}")
             output_path = ws.secure_path(suffix=".pdf")
 
             uploaded_file.save(str(input_path))
-            stats = compress_pdf_lossless(input_path, output_path, ws)
+            stats = compress_pdf_lossless(input_path, output_path, ws, strong_mode=strong_mode)
 
             with open(output_path, "rb") as f:
                 output_bytes = f.read()

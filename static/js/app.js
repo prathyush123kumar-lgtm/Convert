@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileSizeDisplay = document.getElementById('fileSizeDisplay');
   const wordCompressOptions = document.getElementById('wordCompressOptions');
   const optimizeImagesToggle = document.getElementById('optimizeImagesToggle');
+  const pdfCompressOptions = document.getElementById('pdfCompressOptions');
+  const strongPdfToggle = document.getElementById('strongPdfToggle');
   const removeFileBtn = document.getElementById('removeFileBtn');
   const processBtn = document.getElementById('processBtn');
   const processBtnText = document.getElementById('processBtnText');
@@ -197,11 +199,16 @@ document.addEventListener('DOMContentLoaded', () => {
       actionHintText.textContent = config.hint;
       processBtnText.textContent = config.btnText;
 
-      // Word compression option visibility
+      // Compression option visibility
       if (currentAction === 'compress-word') {
         wordCompressOptions.classList.remove('hidden');
+        pdfCompressOptions.classList.add('hidden');
+      } else if (currentAction === 'compress-pdf') {
+        pdfCompressOptions.classList.remove('hidden');
+        wordCompressOptions.classList.add('hidden');
       } else {
         wordCompressOptions.classList.add('hidden');
+        pdfCompressOptions.classList.add('hidden');
       }
 
       // If a file was already loaded, verify compatibility
@@ -287,8 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentAction === 'compress-word') {
       wordCompressOptions.classList.remove('hidden');
+      pdfCompressOptions.classList.add('hidden');
+    } else if (currentAction === 'compress-pdf') {
+      pdfCompressOptions.classList.remove('hidden');
+      wordCompressOptions.classList.add('hidden');
     } else {
       wordCompressOptions.classList.add('hidden');
+      pdfCompressOptions.classList.add('hidden');
     }
   };
 
@@ -331,6 +343,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentAction === 'compress-word') {
       const optImg = optimizeImagesToggle ? optimizeImagesToggle.checked : false;
       formData.append('optimize_images', optImg ? 'true' : 'false');
+    } else if (currentAction === 'compress-pdf') {
+      const strongPdf = strongPdfToggle ? strongPdfToggle.checked : false;
+      formData.append('strong_mode', strongPdf ? 'true' : 'false');
     }
 
     try {

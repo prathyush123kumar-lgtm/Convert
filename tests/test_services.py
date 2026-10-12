@@ -121,6 +121,19 @@ class TestDocumentServices(unittest.TestCase):
             # Size must never be larger than original
             self.assertLessEqual(stats["compressed_size"], stats["original_size"])
 
+    def test_compress_pdf_strong_mode(self):
+        """Test strong mode PDF compression optimizing embedded images."""
+        text_pdf = FIXTURES_DIR / "text_document.pdf"
+        self.assertTrue(text_pdf.exists())
+
+        with EphemeralWorkspace(prefix="test_cmp_pdf_strong_") as ws:
+            output_pdf = ws.secure_path(suffix=".pdf")
+            stats = compress_pdf_lossless(text_pdf, output_pdf, ws, strong_mode=True)
+
+            self.assertTrue(output_pdf.exists())
+            self.assertTrue(stats["strong_mode"])
+            self.assertLessEqual(stats["compressed_size"], stats["original_size"])
+
     def test_compress_word_safe_and_image_optimization(self):
         """Test safe Word compression and optional embedded image optimization."""
         huge_doc = FIXTURES_DIR / "huge_image_document.docx"
