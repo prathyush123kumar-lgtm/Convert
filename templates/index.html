@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Fast, private, zero-retention document converter and compressor. Word to PDF, PDF to Word, and lossless compression without registration or document storage.">
+  <title>PrivDoc — Privacy-First Document Converter & Compressor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <a href="/" class="brand" aria-label="PrivDoc Home">
+          <div class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <span class="brand-title">Priv<span class="accent-text">Doc</span></span>
+        </a>
+
+        <div class="header-actions">
+          <div class="privacy-pill" title="Files are processed in an ephemeral sandbox and wiped immediately.">
+            <span class="pulse-dot"></span>
+            <span>Zero Data Retention</span>
+          </div>
+          <button id="themeToggleBtn" class="theme-toggle" aria-label="Toggle visual theme" title="Toggle Light/Dark Theme">
+            <span class="theme-icon">🌙</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      <div class="content-container">
+        
+        <!-- Hero Section -->
+        <section class="hero-section">
+          <div class="trust-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>No Accounts · No History · No Third-Party Cloud</span>
+          </div>
+          <h1 class="hero-title">Document utility that respects your privacy.</h1>
+          <p class="hero-subtitle">
+            Upload a file, convert or compress it losslessly, download the result, and leave. Files are processed in an isolated ephemeral sandbox and permanently erased from the server immediately after download.
+          </p>
+        </section>
+
+        <!-- Tool Card Container -->
+        <div class="tool-card">
+          
+          <!-- Primary Actions Tab Navigation -->
+          <nav class="action-tabs" role="tablist" aria-label="Document Operations">
+            <button class="tab-btn active" role="tab" aria-selected="true" id="tab-word-to-pdf" data-action="word-to-pdf" data-accept=".docx,.doc" data-type="Word Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </span>
+              <span class="tab-label">Word to PDF</span>
+            </button>
+
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-pdf-to-word" data-action="pdf-to-word" data-accept=".pdf" data-type="PDF Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 12h4"/><path d="M10 16h4"/></svg>
+              </span>
+              <span class="tab-label">PDF to Word</span>
+            </button>
+
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-compress-pdf" data-action="compress-pdf" data-accept=".pdf" data-type="PDF Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              </span>
+              <span class="tab-label">Compress PDF</span>
+            </button>
+
+            <button class="tab-btn" role="tab" aria-selected="false" id="tab-compress-word" data-action="compress-word" data-accept=".docx" data-type="Word Document">
+              <span class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </span>
+              <span class="tab-label">Compress Word</span>
+            </button>
+          </nav>
+
+          <!-- Operation Scope Hint -->
+          <div class="action-hint-banner" id="actionHintBanner">
+            <span class="hint-dot"></span>
+            <span id="actionHintText">Convert Microsoft Word (.docx) to high-fidelity PDF with preserved formatting, tables, and typography.</span>
+          </div>
+
+          <!-- Drag and Drop Upload Area -->
+          <div class="dropzone" id="dropzone" tabindex="0" role="region" aria-label="File Upload Dropzone">
+            <input type="file" id="fileInput" class="file-input-hidden" accept=".docx,.doc">
+            
+            <div class="dropzone-content">
+              <div class="upload-icon-circle">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <h2 class="dropzone-prompt">Drag & drop your document here</h2>
+              <p class="dropzone-sub">or <button type="button" class="browse-link" id="browseBtn">browse files</button> from your device</p>
+              <div class="dropzone-constraints">
+                <span id="formatConstraintBadge" class="format-pill">Accepts .DOCX, .DOC</span>
+                <span class="limit-pill">Up to 50 MB</span>
+                <span class="ephemeral-pill">Instant Wipe</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selected File Card (Hidden Initially) -->
+          <div class="file-card hidden" id="fileCard">
+            <div class="file-card-info">
+              <div class="file-icon-box">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="file-details">
+                <span class="file-name" id="fileNameDisplay">document.docx</span>
+                <span class="file-meta" id="fileSizeDisplay">2.4 MB</span>
+              </div>
+            </div>
+
+            <!-- Optional Option for Compress Word -->
+            <div class="custom-option-panel hidden" id="wordCompressOptions">
+              <label class="checkbox-label" for="optimizeImagesToggle">
+                <input type="checkbox" id="optimizeImagesToggle">
+                <span class="checkbox-custom"></span>
+                <span class="checkbox-text">
+                  <strong>Optimize embedded images</strong>
+                  <span class="subtext">Shrinks oversized photos (may slightly reduce image fidelity).</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="file-card-actions">
+              <button type="button" class="btn btn-secondary" id="removeFileBtn" title="Select different file">Remove</button>
+              <button type="button" class="btn btn-primary" id="processBtn">
+                <span class="btn-text" id="processBtnText">Convert to PDF</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Processing State Indicator (Hidden Initially) -->
+          <div class="status-panel hidden" id="statusPanel">
+            <div class="processing-spinner"></div>
+            <div class="status-content">
+              <h3 class="status-title" id="statusTitle">Processing Document...</h3>
+              <p class="status-desc" id="statusDesc">Files are isolated in a temporary server workspace.</p>
+            </div>
+          </div>
+
+          <!-- Result Card (Hidden Initially) -->
+          <div class="result-card hidden" id="resultCard">
+            <div class="result-header">
+              <div class="success-icon-box">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <h3 class="result-title" id="resultTitle">Operation Complete</h3>
+                <p class="result-subtitle" id="resultSubtitle">Your file is ready. All temporary server files have been purged.</p>
+              </div>
+            </div>
+
+            <!-- Compression Stats Display (Only for Compression) -->
+            <div class="compression-stats hidden" id="compressionStats">
+              <div class="stat-item">
+                <span class="stat-label">Original Size</span>
+                <span class="stat-val" id="statOriginalSize">—</span>
+              </div>
+              <div class="stat-divider">→</div>
+              <div class="stat-item">
+                <span class="stat-label">Resulting Size</span>
+                <span class="stat-val" id="statCompressedSize">—</span>
+              </div>
+              <div class="stat-badge" id="statSavingsBadge">
+                <span id="statSavingsPercent">0%</span> Saved
+              </div>
+            </div>
+
+            <div class="compression-note hidden" id="compressionNote"></div>
+
+            <div class="result-actions">
+              <a href="#" class="btn btn-primary btn-download" id="downloadBtn" download>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span id="downloadBtnText">Download Result</span>
+              </a>
+              <button type="button" class="btn btn-secondary" id="resetBtn">Process Another Document</button>
+            </div>
+
+            <!-- Realistic Quality Notice -->
+            <div class="fidelity-notice">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>Formatting fidelity is preserved within conversion engine specifications. Very complex proprietary macros or non-standard fonts may differ slightly.</span>
+            </div>
+          </div>
+
+          <!-- Error Alert Banner (Hidden Initially) -->
+          <div class="error-banner hidden" id="errorBanner" role="alert">
+            <div class="error-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div class="error-content">
+              <h4 class="error-title" id="errorTitle">Conversion Failed</h4>
+              <p class="error-message" id="errorMessage">An unexpected error occurred.</p>
+              
+              <!-- Special OCR recommendation for scanned documents -->
+              <div class="ocr-advisory hidden" id="ocrAdvisory">
+                <strong>Why did this happen?</strong>
+                <p>This PDF contains image scans without selectable text. pdf2docx is designed for text-based PDFs and cannot recreate Word documents from raw pictures without OCR. Please run an OCR tool on your PDF before converting.</p>
+              </div>
+            </div>
+            <button type="button" class="error-dismiss" id="dismissErrorBtn" aria-label="Dismiss error">×</button>
+          </div>
+
+        </div>
+
+        <!-- Privacy Architecture Guarantee Section -->
+        <section class="privacy-section">
+          <div class="privacy-card">
+            <div class="privacy-card-header">
+              <div class="privacy-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3>Our Concrete Privacy Guarantees</h3>
+            </div>
+            <div class="guarantees-grid">
+              <div class="guarantee-item">
+                <h4>1. No Permanent Storage</h4>
+                <p>There is no uploads directory and no database. Every request is granted an ephemeral directory that is scrubbed upon completion.</p>
+              </div>
+              <div class="guarantee-item">
+                <h4>2. Never Used for AI Training</h4>
+                <p>Your documents are never retained, indexed, read, or fed into any AI model. All processing is strictly local to this server.</p>
+              </div>
+              <div class="guarantee-item">
+                <h4>3. Anonymous Zero-Log Policy</h4>
+                <p>We do not log document bytes, text snippets, file content, or personally identifiable metadata.</p>
+              </div>
+              <div class="guarantee-item">
+                <h4>4. Cache-Control Enforced</h4>
+                <p>Every response enforces strict <code>no-store</code> and <code>no-cache</code> directives so neither browsers nor proxies cache your files.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <p class="footer-copy">© 2026 PrivDoc. Built for privacy, speed, and simplicity. No cookies or trackers.</p>
+        <div class="engine-status" id="engineStatusIndicator">
+          <span class="status-bullet ready"></span>
+          <span id="engineStatusText">Checking conversion engines...</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
